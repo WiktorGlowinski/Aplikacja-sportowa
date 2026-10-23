@@ -5,6 +5,7 @@ interface EvaluationState {
   currentIndex: number;
   evaluations: Record<string, EvaluationItem>;
   setEvaluation: (playerId: string, evalData: Partial<EvaluationItem>) => void;
+  loadEvaluations: (items: Record<string, EvaluationItem>) => void;
   nextPlayer: (total: number) => void;
   prevPlayer: () => void;
   reset: () => void;
@@ -14,10 +15,11 @@ export const useEvaluationStore = create<EvaluationState>((set) => ({
   currentIndex: 0,
   evaluations: {},
 
+  loadEvaluations: (items) => set({ evaluations: items }),
+
   setEvaluation: (playerId, evalData) =>
     set((state) => {
       const prev = state.evaluations[playerId];
-      
       const updated: EvaluationItem = {
         playerId,
         isPresent: evalData.isPresent ?? prev?.isPresent ?? true,

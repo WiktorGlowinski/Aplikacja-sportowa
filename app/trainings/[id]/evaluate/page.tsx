@@ -24,7 +24,7 @@ function EvaluateContent() {
   const [isPending, startTransition] = useTransition();
   const [showAbsenceModal, setShowAbsenceModal] = useState(false);
 
-  const { currentIndex, evaluations, setEvaluation, nextPlayer, prevPlayer, reset } = useEvaluationStore();
+  const { currentIndex, evaluations, setEvaluation, loadEvaluations, nextPlayer, prevPlayer, reset } = useEvaluationStore();
 
   useEffect(() => {
     async function loadData() {
@@ -32,13 +32,28 @@ function EvaluateContent() {
       if (res.success) {
         setTraining(res.training);
         setPlayers(res.players || []);
+
+        // Załaduj istniejące oceny z bazy do store Zustand
+        if (res.existingEvaluations && res.existingEvaluations.length > 0) {
+          const initialMap: Record<string, any> = {};
+          res.existingEvaluations.forEach((ev: any) => {
+            initialMap[ev.player_id] = {
+              playerId: ev.player_id,
+              isPresent: ev.is_present,
+              score: ev.score,
+              absenceReason: ev.absence_reason,
+              comment: ev.comment,
+            };
+          });
+          loadEvaluations(initialMap);
+        }
       } else {
         setErrorMessage(res.error || 'Błąd wczytywania danych');
       }
       setLoading(false);
     }
     loadData();
-  }, [trainingId]);
+  }, [trainingId, loadEvaluations]);
 
   if (loading) {
     return (
@@ -91,17 +106,16 @@ function EvaluateContent() {
   const handleFinish = () => {
     startTransition(async () => {
       const items = Object.values(evaluations);
+      // Przekazujemy null jako coachId, żeby nie naruszać FK
       const res = await submitTrainingEvaluations(
         training.id,
         training.club_id,
-        '00000000-0000-0000-0000-000000000000',
+        null,
         items
       );
 
       if (res.success) {
         alert('Oceny zostały zapisane.');
-        reset();
-        router.push('/');
       } else {
         alert('Błąd zapisu: ' + res.error);
       }
@@ -113,7 +127,6 @@ function EvaluateContent() {
   return (
     <div className="min-h-screen bg-[#f4efe6] text-[#1c241e] font-sans flex flex-col justify-between p-4 sm:p-6">
       <div className="max-w-md w-full mx-auto">
-        {/* Zielony pasek jednostki treningowej w stylu FORMA */}
         <div className="bg-[#1a3826] text-[#e8f0eb] rounded-t-xl px-4 py-2.5 flex justify-between items-center text-xs tracking-wide">
           <span className="font-medium truncate max-w-[200px]">
             {training.topic || 'Trening drużyny'}
@@ -123,7 +136,6 @@ function EvaluateContent() {
           </span>
         </div>
 
-        {/* Główna karta zawodnika */}
         <div className="bg-[#faf7f0] border-x border-b border-[#ded7c8] rounded-b-xl p-6 shadow-sm">
           <div className="text-[11px] uppercase tracking-widest text-[#727d74] font-semibold mb-2">
             Zawodnik {currentIndex + 1} z {total}
@@ -142,7 +154,6 @@ function EvaluateContent() {
             Względem własnego poziomu, nie względem kolegów.
           </p>
 
-          {/* Dyskretny status aktualnej oceny */}
           <div className="mt-4 pt-3 border-t border-[#eee7da] flex items-center justify-between text-xs">
             <span className="text-[#7c887e]">Status wpisu:</span>
             <span className="font-semibold text-[#1a3826]">
@@ -159,7 +170,6 @@ function EvaluateContent() {
           </div>
         </div>
 
-        {/* Trzy kafelki oceny w kolorze FORMA */}
         <div className="grid grid-cols-3 gap-2.5 mt-5">
           <button
             type="button"
@@ -213,7 +223,6 @@ function EvaluateContent() {
           </button>
         </div>
 
-        {/* Przycisk nieobecności (surowy, bez emoji) */}
         <button
           type="button"
           onClick={() => setShowAbsenceModal(true)}
@@ -229,7 +238,6 @@ function EvaluateContent() {
         </button>
       </div>
 
-      {/* Dolna nawigacja */}
       <div className="max-w-md w-full mx-auto flex gap-2.5 pt-4">
         <button
           type="button"
@@ -260,7 +268,6 @@ function EvaluateContent() {
         )}
       </div>
 
-      {/* Modal powodów nieobecności bez emotek */}
       {showAbsenceModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="bg-[#faf7f0] border border-[#dcd5c7] rounded-xl w-full max-w-sm p-5 space-y-3 shadow-xl">
