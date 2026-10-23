@@ -46,3 +46,32 @@ export async function submitTrainingEvaluations(
     return { success: false, error: err.message };
   }
 }
+export async function getTrainingWithPlayers(trainingId: string) {
+  try {
+    // 1. Pobierz dane treningu
+    const { data: training, error: trainingError } = await supabaseAdmin
+      .from('trainings')
+      .select('id, club_id, team_id, date, topic, status')
+      .eq('id', trainingId)
+      .single();
+
+    if (trainingError || !training) {
+      throw new Error('Nie znaleziono treningu');
+    }
+
+    // 2. Pobierz aktywnych zawodników tej drużyny
+    const { data: players, error: playersError } = await supabaseAdmin
+      .from('players')
+      .select('id, first_name, last_name, jersey_number')
+      .eq('current_team_id', training.team_id)
+      .order('jersey_number', { ascending: true });
+
+    if (playersError) {
+      throw new Error('Błąd pobierania zawodników');
+    }
+
+    return { success: true, training, players };
+  } catch (err: any) {
+    return { success: false, error: err.message, training: null, players: [] };
+  }
+}
